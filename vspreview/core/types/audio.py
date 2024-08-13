@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from array import array
 from math import floor
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 import vapoursynth as vs
 from PyQt6.QtCore import QIODevice
@@ -34,7 +34,7 @@ class AudioOutput(AbstractYAMLObject):
         self.main = main_window()
 
         with self.main.env:
-            vs_outputs = list(x for x in vs.get_outputs().values() if isinstance(x, vs.AudioNode))
+            vs_outputs = list(vs.get_outputs().values())
 
         self.index = vs_outputs.index(vs_output)
         self.source_vs_output = vs_output
@@ -90,7 +90,7 @@ class AudioOutput(AbstractYAMLObject):
         if not hasattr(self, 'name'):
             from ...models.outputs import AudioOutputs
 
-            if vs_output in vs_outputs:
+            if vs_output in (vs_outputs := list(vs.get_outputs().values())):
                 self.name = self.info.get('name', 'Track ' + str(self.index))
                 if isinstance(self.main.toolbars.playback.audio_outputs, AudioOutputs):
                     self.main.toolbars.playback.audio_outputs.setData(
@@ -132,5 +132,5 @@ class AudioOutput(AbstractYAMLObject):
     def to_time(self, frame: Frame) -> Time:
         return Time(seconds=self._calculate_seconds(int(frame)))
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'name', str, self.__setattr__)

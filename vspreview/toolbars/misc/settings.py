@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ...core import AbstractToolbarSettings
 
+
 __all__ = [
     'MiscSettings'
 ]

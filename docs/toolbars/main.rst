@@ -18,7 +18,7 @@ Clicking on a node switches ``vs-preview``\'s output to that node.
 .. image:: img/main/nodes.png
     :alt: VideoNode dropdown
 
-Nodes can be given individual names by setting the "name" parameter in `vspreview.set_output`.
+They can be given individual names by setting the ``Name`` frameprop.
 
 \2. Frame index
 ^^^^^^^^^^^^^^^

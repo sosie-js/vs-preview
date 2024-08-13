@@ -22,14 +22,12 @@ __all__ = [
 class SingletonMeta(type):
     def __init__(cls: type[T], name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> None:
         super().__init__(name, bases, dct)  # type: ignore
-        # store the instance in a list rather than directly as a member because otherwise this crashes
-        # with PyQt6 on Python 3.12 for reasons I do not pretend to understand
-        cls.instance: list[T] = []  # type: ignore
+        cls.instance: T | None = None  # type: ignore
 
     def __call__(cls, *args: Any, **kwargs: Any) -> T:  # type: ignore
-        if not cls.instance:
-            cls.instance.append(super().__call__(*args, **kwargs))
-        return cls.instance[0]
+        if cls.instance is None:
+            cls.instance = super().__call__(*args, **kwargs)
+        return cls.instance
 
     def __new__(cls: type[type], name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> type:
         subcls = super(SingletonMeta, cls).__new__(cls, name, bases, dct)  # type: ignore
@@ -46,12 +44,12 @@ class SingletonMeta(type):
 class Singleton(metaclass=SingletonMeta):
     @no_type_check
     def __new__(cls: type[T], *args: Any, **kwargs: Any) -> T:
-        if not cls.instance:
+        if cls.instance is None:
             if hasattr(cls, '__default_new__'):
-                cls.instance.append(cls.__default_new__(cls, *args, **kwargs))
+                cls.instance = cls.__default_new__(cls, *args, **kwargs)
             else:
-                cls.instance.append(super(Singleton, cls).__new__(cls))
-        return cls.instance[0]
+                cls.instance = super(Singleton, cls).__new__(cls)
+        return cls.instance
 
 
 class AbstractYAMLObjectMeta(YAMLObjectMetaclass, ABCMeta):

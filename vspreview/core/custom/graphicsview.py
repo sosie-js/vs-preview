@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import IntEnum, auto
 from typing import TYPE_CHECKING, Any
 
-from PyQt6.QtCore import QEvent, QPoint, QPointF, QRect, Qt, pyqtSignal, QRectF
+from PyQt6.QtCore import QEvent, QPoint, QPointF, QRect, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QColor, QMouseEvent, QNativeGestureEvent, QPainter, QPalette, QPixmap, QResizeEvent, QTransform, QWheelEvent
 )
@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 
 if TYPE_CHECKING:
     from ...main import MainWindow
-    from ..types import ArInfo, CroppingInfo
+    from ..types import CroppingInfo
 
 
 __all__ = [
@@ -47,80 +47,27 @@ class GraphicsImageItem:
     def pixmap(self) -> QPixmap:
         return self._graphics_item.pixmap()
 
-    def setPixmap(
-        self, new_pixmap: QPixmap | None,
-        crop_values: CroppingInfo | None = None,
-        ar_values: ArInfo | None = None
-    ) -> None:
-
-        sizes = (self._pixmap.width(), self._pixmap.height())
-
+    def setPixmap(self, new_pixmap: QPixmap | None, crop_values: CroppingInfo | None = None) -> None:
         if new_pixmap is None:
             new_pixmap = self._pixmap
         else:
             self._pixmap = new_pixmap
 
-        if ar_values is not None and ar_values.active:
-            new_pixmap = self._set_ar(new_pixmap, ar_values)
-
         if crop_values is not None and crop_values.active:
-            new_pixmap = self._set_crop(new_pixmap, crop_values)
+            padded = QPixmap(new_pixmap.width(), new_pixmap.height())
+            padded.fill(QColor(0, 0, 0, 0))
+            painter = QPainter(padded)
+            painter.drawPixmap(
+                QPoint(crop_values.left, crop_values.top), new_pixmap,
+                QRect(crop_values.left, crop_values.top, crop_values.width, crop_values.height)
+            )
+            painter.end()
+            new_pixmap = padded
 
         self._graphics_item.setPixmap(new_pixmap)
 
-        if sizes != (new_pixmap.width(), new_pixmap.height()):
-            from ...core import main_window
-
-            main_window().refresh_graphics_views()
-
     def show(self) -> None:
         self._graphics_item.show()
-
-    def _set_ar(self, pixmap: QPixmap, ar_values: ArInfo) -> QPixmap:
-        if ar_values.sarnum == ar_values.sarden:
-            return pixmap
-
-        new_width = pixmap.width()
-        new_height = pixmap.height()
-
-        ar_hz = pixmap.width() * ar_values.sarnum / ar_values.sarden
-        ar_vt = pixmap.height() * ar_values.sarden / ar_values.sarnum
-
-        if ar_hz >= pixmap.width():
-            new_width = int(ar_hz)
-        else:
-            new_height = int(ar_vt)
-
-        stretched = QPixmap(new_width, new_height)
-        painter = QPainter(stretched)
-
-        # TODO: Somehow allow the user to define the scaler used (using vskernels as ref)
-        painter.drawPixmap(
-            QPoint(0, 0), pixmap.scaled(
-                new_width, new_height,
-                Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            ),
-            QRect(0, 0, new_width, new_height)
-        )
-
-        painter.end()
-
-        return stretched
-
-    def _set_crop(self, pixmap: QPixmap, crop_values: CroppingInfo) -> QPixmap:
-        padded = QPixmap(pixmap.width(), pixmap.height())
-        padded.fill(QColor(0, 0, 0, 0))
-
-        painter = QPainter(padded)
-        painter.drawPixmap(
-            QPoint(crop_values.left, crop_values.top), pixmap,
-            QRect(crop_values.left, crop_values.top, crop_values.width, crop_values.height)
-        )
-
-        painter.end()
-
-        return padded
 
 
 class GraphicsScene(QGraphicsScene):
@@ -180,10 +127,7 @@ class GraphicsView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.drag_mode = self.dragMode()
 
-        self.main.reload_stylesheet_signal.connect(
-            lambda: self.setBackgroundBrush(self.main.palette().brush(QPalette.ColorRole.Window))
-        )
-
+        self.setBackgroundBrush(self.main.palette().brush(QPalette.ColorRole.Window))
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
 
@@ -230,13 +174,6 @@ class GraphicsView(QGraphicsView):
             self.setZoom(None)
         else:
             self.setZoom(self.zoom_combobox.currentData())
-
-    def setup_view(self) -> None:
-        for item in self.graphics_scene.graphics_items:
-            item.hide()
-
-        self.current_scene.show()
-        self.graphics_scene.setSceneRect(QRectF(self.current_scene.pixmap().rect()))
 
     def bind_to(self, other_view: GraphicsView, *, mutual: bool = True) -> None:
         self.main.bound_graphics_views[other_view].add(self)

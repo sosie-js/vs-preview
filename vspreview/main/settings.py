@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from functools import partial
 from multiprocessing import cpu_count
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 from PyQt6.QtCore import QKeyCombination, Qt
 from PyQt6.QtGui import QShortcut
@@ -28,8 +28,7 @@ class MainSettings(AbstractToolbarSettings):
         'png_compressing_spinbox', 'statusbar_timeout_control',
         'timeline_notches_margin_spinbox', 'usable_cpus_spinbox',
         'zoom_levels_combobox', 'zoom_levels_lineedit', 'zoom_level_default_combobox',
-        'azerty_keyboard_checkbox', 'dragnavigator_timeout_spinbox', 'dragtimeline_timeout_spinbox',
-        'color_management_checkbox', 'plugins_save_position_combobox'
+        'azerty_keyboard_checkbox', 'dragnavigator_timeout_spinbox', 'color_management_checkbox'
     )
 
     INSTANT_FRAME_UPDATE = False
@@ -41,11 +40,9 @@ class MainSettings(AbstractToolbarSettings):
 
         self.autosave_control = TimeEdit(self)
 
-        self.base_ppi_spinbox = SpinBox(
-            self, 1, 999, valueChanged=lambda: hasattr(main_window(), 'timeline') and main_window().timeline.set_sizes()
-        )
+        self.base_ppi_spinbox = SpinBox(self, 1, 999)
 
-        self.dark_theme_checkbox = CheckBox('Dark theme', self, clicked=lambda: main_window().apply_stylesheet())
+        self.dark_theme_checkbox = CheckBox('Dark theme', self)
 
         self.opengl_rendering_checkbox = CheckBox('OpenGL rendering', self)
 
@@ -75,17 +72,8 @@ class MainSettings(AbstractToolbarSettings):
         self.zoom_level_default_combobox = ComboBox[int]()
 
         self.dragnavigator_timeout_spinbox = SpinBox(self, 0, 1000 * 60 * 5)
-        self.dragtimeline_timeout_spinbox = SpinBox(self, 0, 500)
-
-        self.primaries_combobox = ComboBox[str](
-            model=GeneralModel[str]([
-                'sRGB', 'DCI-P3'
-            ], False)
-        )
 
         self.color_management_checkbox = CheckBox('Color management', self)
-
-        self.plugins_save_position_combobox = ComboBox[str](model=GeneralModel[str](['no', 'global', 'local']))
 
         HBoxLayout(self.vlayout, [QLabel('Autosave interval (0 - disable)'), self.autosave_control])
 
@@ -122,12 +110,6 @@ class MainSettings(AbstractToolbarSettings):
 
         HBoxLayout(self.vlayout, [QLabel('Drag Navigator Timeout (ms)'), self.dragnavigator_timeout_spinbox])
 
-        HBoxLayout(self.vlayout, [QLabel('Drag Timeline Timeout (ms)'), self.dragtimeline_timeout_spinbox])
-
-        HBoxLayout(self.vlayout, [QLabel('Output Primaries'), self.primaries_combobox])
-
-        HBoxLayout(self.vlayout, [QLabel('Save Plugins Bar Position'), self.plugins_save_position_combobox])
-
         if sys.platform == 'win32':
             HBoxLayout(self.vlayout, [self.color_management_checkbox])
 
@@ -144,13 +126,12 @@ class MainSettings(AbstractToolbarSettings):
         self.azerty_keyboard_checkbox.setChecked(False)
         self.usable_cpus_spinbox.setValue(self.get_usable_cpus_count())
         self.dragnavigator_timeout_spinbox.setValue(250)
-        self.dragtimeline_timeout_spinbox.setValue(40)
 
         self.zoom_levels = [
             25, 50, 68, 75, 85, 100, 150, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 2000, 3200
         ]
         self.zoom_level_default_combobox.setCurrentIndex(5)
-        self.color_management_checkbox.setChecked(self.color_management_checkbox.isVisible())
+        self.color_management_checkbox.setChecked(False)
 
     @property
     def autosave_interval(self) -> Time:
@@ -186,10 +167,10 @@ class MainSettings(AbstractToolbarSettings):
 
     @property
     def force_old_storages_removal(self) -> int:
-        return main_window().force_storage or self.force_old_storages_removal_checkbox.isChecked()
+        return self.force_old_storages_removal_checkbox.isChecked()
 
     @property
-    def azerty_keybinds(self) -> bool:
+    def azerty_keybinds(self) -> int:
         return self.azerty_keyboard_checkbox.isChecked()
 
     @property
@@ -260,10 +241,6 @@ class MainSettings(AbstractToolbarSettings):
     def dragnavigator_timeout(self) -> int:
         return self.dragnavigator_timeout_spinbox.value()
 
-    @property
-    def dragtimeline_timeout(self) -> int:
-        return self.dragtimeline_timeout_spinbox.value()
-
     def zoom_levels_combobox_on_add(self) -> None:
         try:
             new_value = int(self.zoom_levels_lineedit.text())
@@ -300,19 +277,10 @@ class MainSettings(AbstractToolbarSettings):
         self.zoom_levels = [x for x in zoom_levels if round(x) != round(old_value)]
 
     @property
-    def output_primaries_zimg(self) -> int:
-        from vstools.enums.color import Primaries
-        return Primaries([1, 12][self.primaries_combobox.currentIndex()])
-
-    @property
-    def plugins_bar_save_behaviour(self) -> int:
-        return self.plugins_save_position_combobox.currentIndex()
-
-    @property
     def color_management(self) -> bool:
         return self.color_management_checkbox.isChecked()
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         return {
             'autosave_interval': self.autosave_interval,
             'base_ppi': self.base_ppi,
@@ -325,15 +293,11 @@ class MainSettings(AbstractToolbarSettings):
             'force_old_storages_removal': self.force_old_storages_removal,
             'zoom_levels': sorted([int(x * 100) for x in self.zoom_levels]),
             'zoom_default_index': self.zoom_default_index,
-            'output_primaries_index': self.primaries_combobox.currentIndex(),
             'dragnavigator_timeout': self.dragnavigator_timeout,
-            'dragtimeline_timeout': self.dragtimeline_timeout,
-            'plugins_bar_save_behaviour_index': self.plugins_bar_save_behaviour,
-            'color_management': self.color_management,
-            'azerty_keybinds': self.azerty_keybinds,
+            'color_management': self.color_management
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def _setstate_(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'autosave_interval', Time, self.autosave_control.setValue)
         try_load(state, 'base_ppi', int, self.base_ppi_spinbox.setValue)
         try_load(state, 'dark_theme', bool, self.dark_theme_checkbox.setChecked)
@@ -346,11 +310,7 @@ class MainSettings(AbstractToolbarSettings):
         try_load(state, 'zoom_levels', list, self)
         try_load(state, 'zoom_default_index', int, self.zoom_level_default_combobox.setCurrentIndex)
         try_load(state, 'dragnavigator_timeout', int, self.dragnavigator_timeout_spinbox.setValue)
-        try_load(state, 'dragtimeline_timeout', int, self.dragtimeline_timeout_spinbox.setValue)
-        try_load(state, 'output_primaries_index', int, self.primaries_combobox.setCurrentIndex)
-        try_load(state, 'plugins_bar_save_behaviour_index', int, self.plugins_save_position_combobox.setCurrentIndex)
         try_load(state, 'color_management', bool, self.color_management_checkbox.setChecked)
-        try_load(state, 'azerty_keybinds', bool, self.azerty_keyboard_checkbox.setChecked)
 
 
 class WindowSettings(QYAMLObjectSingleton):
@@ -358,7 +318,7 @@ class WindowSettings(QYAMLObjectSingleton):
         'timeline_mode', 'window_geometry', 'window_state', 'zoom_index', 'x_pos', 'y_pos'
     )
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         main = main_window()
 
         return {
@@ -370,7 +330,7 @@ class WindowSettings(QYAMLObjectSingleton):
             'y_pos': main.graphics_view.verticalScrollBar().value(),
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'timeline_mode', str, self.__setattr__)
         try_load(state, 'window_geometry', bytes, self.__setattr__)
         try_load(state, 'window_state', bytes, self.__setattr__)

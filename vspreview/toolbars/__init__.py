@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast, overload
 
-from ..core import AbstractToolbar, AbstractYAMLObjectSingleton, storage_err_msg
+from ..core import AbstractToolbar, AbstractToolbarSettings, AbstractYAMLObjectSingleton, storage_err_msg
 from .main import MainToolbar
 from .playback import PlaybackToolbar
 
 if TYPE_CHECKING:
     from ..main import MainWindow
     from .benchmark import BenchmarkToolbar
+    from .comp import CompToolbar
     from .debug import DebugToolbar
     from .misc import MiscToolbar
     from .pipette import PipetteToolbar
@@ -32,6 +33,7 @@ class Toolbars(AbstractYAMLObjectSingleton):
     pipette: PipetteToolbar
     benchmark: BenchmarkToolbar
     misc: MiscToolbar
+    comp: CompToolbar
     debug: DebugToolbar
 
     _closure = {**globals()}
@@ -48,7 +50,7 @@ class Toolbars(AbstractYAMLObjectSingleton):
         self.playback = PlaybackToolbar(main_window)
 
         self.toolbar_names = [
-            'debug', 'scening', 'pipette', 'benchmark', 'misc'
+            'debug', 'scening', 'pipette', 'benchmark', 'misc', 'comp'
         ]
 
         self.toolbars = dict(main=self.main, playback=self.playback) | {
@@ -93,13 +95,21 @@ class Toolbars(AbstractYAMLObjectSingleton):
         def __iter__(self) -> Iterator[AbstractToolbar]:
             ...
 
-    def __getstate__(self) -> dict[str, dict[str, Any]]:
+    def should_set_state(self, cls: type[AbstractToolbar] | type[AbstractToolbarSettings]) -> bool:
+        if issubclass(cls, AbstractToolbarSettings):
+            name = cls.__name__[:-8]
+        else:
+            name = cls.__name__[:-7]
+
+        return name.lower() in self.toolbars
+
+    def __getstate__(self) -> Mapping[str, Mapping[str, Any]]:
         return {
             toolbar_name: getattr(self, toolbar_name).__getstate__()
             for toolbar_name in self.toolbars
         }
 
-    def __setstate__(self, state: dict[str, dict[str, Any]]) -> None:
+    def __setstate__(self, state: Mapping[str, Mapping[str, Any]]) -> None:
         for toolbar_name in self.toolbars:
             try:
                 storage = state[toolbar_name]

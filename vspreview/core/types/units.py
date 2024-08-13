@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, SupportsFloat, SupportsInt, Union, cast
+from typing import Any, Mapping, SupportsFloat, SupportsInt, Union, cast
 
 from ..abstracts import main_window, try_load
 from .yaml import YAMLObjectWrapper
@@ -78,14 +78,11 @@ class Frame(YAMLObjectWrapper):
         self.value = int(self.value // other.value)
         return self
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(
             state, 'value', int, self.__init__,  # type: ignore
             'Failed to load Frame instance'
         )
-
-    def __hash__(self) -> int:
-        return hash(self.value)
 
 
 class Time(YAMLObjectWrapper):
@@ -148,29 +145,11 @@ class Time(YAMLObjectWrapper):
 
         return strfdelta(self, '%h:%M:%S.%Z')
 
-    def to_str_minimal(self, max_value: Time | None = None) -> str:
-        from ...utils import strfdelta
-
-        max_value = (max_value or self).value
-
-        fmt = ''
-
-        if max_value.seconds > 3600:
-            fmt += '%h:'
-
-        if max_value.seconds > 60:
-            fmt += '%M:'
-
-        return strfdelta(self, f'{fmt}%S.%Z')
-
     def __float__(self) -> float:
         return cast(float, self.value.total_seconds())
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(
             state, 'value', timedelta, self.__init__,  # type: ignore
             'Failed to load Time instance'
         )
-
-    def __hash__(self) -> int:
-        return hash(self.value)

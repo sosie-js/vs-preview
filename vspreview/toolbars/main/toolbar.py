@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 from PyQt6.QtCore import QKeyCombination, Qt
 from PyQt6.QtWidgets import QComboBox
@@ -94,10 +94,9 @@ class MainToolbar(AbstractToolbar):
         self.hlayout.addStretch()
 
     def add_shortcuts(self) -> None:
-        if self.main.reload_enabled:
-            self.main.add_shortcut(
-                QKeyCombination(Qt.Modifier.CTRL, Qt.Key.Key_R).toCombined(), self.main.reload_script
-            )
+        self.main.add_shortcut(
+            QKeyCombination(Qt.Modifier.CTRL, Qt.Key.Key_R).toCombined(), self.main.reload_script
+        )
 
         for i, key in enumerate(self.num_keys):
             self.add_shortcut(key, partial(self.main.switch_output, i))
@@ -121,19 +120,13 @@ class MainToolbar(AbstractToolbar):
             return
 
         if checked:
-            from ...main.timeline import Timeline
-
             if not force_frame:
                 force_frame = self.main.current_output.last_showed_frame
 
-            if self.main.timeline.mode == Timeline.Mode.TIME:
-                for output in self.outputs:
-                    output.last_showed_frame = output.to_frame(
-                        self.main.current_output.to_time(force_frame)
-                    )
-            else:
-                for output in self.outputs:
-                    output.last_showed_frame = force_frame
+            for output in self.outputs:
+                output.last_showed_frame = output.to_frame(
+                    self.main.current_output.to_time(force_frame)
+                )
 
     def on_current_frame_changed(self, frame: Frame) -> None:
         qt_silent_call(self.frame_control.setValue, frame)
@@ -146,6 +139,10 @@ class MainToolbar(AbstractToolbar):
         qt_silent_call(self.outputs_combobox.setCurrentIndex, index)
         qt_silent_call(self.frame_control.setMaximum, self.main.current_output.total_frames - 1)
         qt_silent_call(self.time_control.setMaximum, self.main.current_output.total_time - Frame(1))
+
+        for graphics_view in self.main.graphics_views:
+            if graphics_view.autofit:
+                graphics_view.setZoom(None)
 
     def rescan_outputs(self, outputs: VideoOutputs | None = None) -> None:
         self.outputs = outputs if isinstance(outputs, VideoOutputs) else VideoOutputs(self.main)
@@ -166,13 +163,13 @@ class MainToolbar(AbstractToolbar):
         elif self.main.timeline.mode == self.main.timeline.Mode.FRAME:
             self.main.timeline.mode = self.main.timeline.Mode.TIME
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         return super().__getstate__() | {
             'current_output_index': self.outputs_combobox.currentIndex(),
             'sync_outputs': self.sync_outputs_checkbox.isChecked()
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'outputs', VideoOutputs, self.rescan_outputs)
         try_load(state, 'current_output_index', int, self.main.switch_output)
         try_load(state, 'sync_outputs', bool, self.sync_outputs_checkbox.setChecked)

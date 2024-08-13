@@ -6,16 +6,17 @@ from fractions import Fraction
 from functools import partial
 from math import floor
 from time import perf_counter_ns
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Mapping, cast
 
 import vapoursynth as vs
 from PyQt6.QtCore import QKeyCombination, Qt
 from PyQt6.QtWidgets import QComboBox, QSlider
 
 from ...core import (
-    AbstractToolbar, AudioOutput, CheckBox, ComboBox, DoubleSpinBox, Frame, FrameEdit, PackingType, PushButton, Time,
-    TimeEdit, Timer, try_load
+    AbstractToolbar, AudioOutput, CheckBox, ComboBox, DoubleSpinBox, Frame, FrameEdit, PushButton, Time, TimeEdit,
+    Timer, try_load
 )
+from ...core.types import video
 from ...models import AudioOutputs
 from ...utils import qt_silent_call
 from .settings import PlaybackSettings
@@ -237,10 +238,10 @@ class PlaybackToolbar(AbstractToolbar):
         ):
             return
 
-        if not PackingType.CURRENT.can_playback:
+        if not video.PACKING_TYPE.can_playback:
             import logging
             logging.warn(
-                f'The current backend ({PackingType.CURRENT.name}) can\'t playback! Install akarin or libp2p plugins.'
+                f'The current backend ({video.PACKING_TYPE.name}) can\'t playback! Install akarin or libp2p plugins.'
             )
             return
 
@@ -451,11 +452,11 @@ class PlaybackToolbar(AbstractToolbar):
 
     def seek_to_start(self, checked: bool | None = None) -> None:
         self.stop()
-        self.main.switch_frame(Frame(0))
+        self.main.current_output.last_showed_frame = Frame(0)
 
     def seek_to_end(self, checked: bool | None = None) -> None:
         self.stop()
-        self.main.switch_frame(self.main.current_output.total_frames - 1)
+        self.main.current_output.last_showed_frame = self.main.current_output.total_frames - 1
 
     def seek_offset(self, offset: int) -> None:
         new_pos = self.main.current_output.last_showed_frame + offset
@@ -611,13 +612,13 @@ class PlaybackToolbar(AbstractToolbar):
         if updateGui:
             qt_silent_call(self.audio_volume_slider.setValue, self.volume)
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         return super().__getstate__() | {
             'seek_interval_frame': self.seek_frame_control.value(),
             'current_audio_output_index': self.audio_outputs_combobox.currentIndex()
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'seek_interval_frame', Frame, self.seek_frame_control.setValue)
         try_load(state, 'audio_outputs', AudioOutputs, self.rescan_outputs)
         try_load(state, 'current_audio_output_index', int, self.audio_outputs_combobox.setCurrentIndex)

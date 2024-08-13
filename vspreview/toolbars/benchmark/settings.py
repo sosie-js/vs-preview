@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 from PyQt6.QtWidgets import QLabel
 
-from ...core import AbstractToolbarSettings, CheckBox, HBoxLayout, SpinBox, Time, TimeEdit, try_load
+from ...core import AbstractToolbarSettings, CheckBox, HBoxLayout, Time, TimeEdit, try_load, SpinBox
 
 __all__ = [
     'BenchmarkSettings'
@@ -71,14 +71,14 @@ class BenchmarkSettings(AbstractToolbarSettings):
     def default_usable_cpus_count(self) -> int:
         return self.default_usable_cpus_spinbox.value()
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         return {
             'clear_cache_enabled': self.clear_cache_enabled,
             'refresh_interval': self.refresh_interval,
             'frame_data_sharing_fix_enabled': self.frame_data_sharing_fix_enabled,
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def _setstate_(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'clear_cache_enabled', bool, self.clear_cache_checkbox.setChecked)
         try_load(state, 'refresh_interval', Time, self.refresh_interval_control.setValue)
         try_load(state, 'frame_data_sharing_fix_enabled', bool, self.frame_data_sharing_fix_checkbox.setChecked)

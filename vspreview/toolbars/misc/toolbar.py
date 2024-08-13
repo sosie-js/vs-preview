@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import logging
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 from PyQt6.QtCore import QKeyCombination, Qt
 from PyQt6.QtWidgets import QComboBox, QFileDialog, QLabel, QSpacerItem
-from vstools import FramePropError, get_prop
 
 from ...core import (
-    AbstractToolbar, ArInfo, CheckBox, CroppingInfo, HBoxLayout, LineEdit, PushButton, SpinBox, Stretch, Time,
-    VBoxLayout, try_load
+    AbstractToolbar, CheckBox, CroppingInfo, HBoxLayout, LineEdit, PushButton, SpinBox, Stretch, Time, VBoxLayout,
+    try_load
 )
 from ...core.custom import ComboBox, Switch
 from ...models import GeneralModel
@@ -35,8 +33,7 @@ class MiscToolbar(AbstractToolbar):
         'toggle_button', 'save_file_types', 'copy_frame_button',
         'crop_top_spinbox', 'crop_left_spinbox', 'crop_width_spinbox',
         'crop_bottom_spinbox', 'crop_right_spinbox', 'crop_height_spinbox',
-        'crop_active_switch', 'crop_mode_combox', 'crop_copycommand_button',
-        'ar_active_switch'
+        'crop_active_switch', 'crop_mode_combox', 'crop_copycommand_button'
     )
 
     settings: MiscSettings
@@ -57,9 +54,7 @@ class MiscToolbar(AbstractToolbar):
     def setup_ui(self) -> None:
         super().setup_ui()
 
-        self.reload_script_button = PushButton(
-            'Reload Script', self, clicked=self.main.reload_script, hidden=not self.main.reload_enabled
-        )
+        self.reload_script_button = PushButton('Reload Script', self, clicked=self.main.reload_script)
 
         self.save_storage_button = PushButton(
             'Save Storage', self, clicked=partial(self.main.dump_storage_async, manually=True)
@@ -76,9 +71,8 @@ class MiscToolbar(AbstractToolbar):
             tooltip='''
                 Available placeholders:
                     {format}, {fps_den}, {fps_num}, {frame},
-                    {height}, {index}, {node_name}, {matrix},
-                    {primaries}, {range}, {script_name}, {total_frames},
-                    {transfer}, {width}.
+                    {height}, {index}, {matrix}, {primaries}, {range},
+                    {script_name}, {total_frames}, {transfer}, {width}.
                 Frame props can be accessed as well using their names.
             '''.replace(' ' * 16, ' ').strip()
         )
@@ -93,11 +87,7 @@ class MiscToolbar(AbstractToolbar):
         VBoxLayout(self.hlayout, [
             HBoxLayout([*first_layer, Stretch()]),
             HBoxLayout([
-                *(
-                    [self.reload_script_button, self.get_separator()]
-                    if self.main.reload_enabled else
-                    []
-                ),
+                self.reload_script_button, self.get_separator(),
                 self.save_storage_button, self.get_separator(),
                 self.copy_frame_button, Stretch()
             ]),
@@ -106,11 +96,6 @@ class MiscToolbar(AbstractToolbar):
 
         self.hlayout.addStretch()
         self.hlayout.addStretch()
-
-        self.ar_active_switch = Switch(
-            10, checked=False, clicked=lambda active: (ArInfo.active.__set__(ArInfo, active), self.update_sar()),
-            tooltip='Toggle respect SAR properties'
-        )
 
         self.crop_active_switch = Switch(10, 22, checked=True, clicked=self.crop_active_onchange)
 
@@ -132,11 +117,6 @@ class MiscToolbar(AbstractToolbar):
         self.crop_active_switch.click()
 
         HBoxLayout(self.hlayout, [
-            VBoxLayout([
-                HBoxLayout([
-                    QLabel('Toggle SAR'), self.ar_active_switch,
-                ], spacing=0)
-            ]),
             VBoxLayout([
                 HBoxLayout([
                     QLabel('Top'), self.crop_top_spinbox, QSpacerItem(35, 10)
@@ -207,7 +187,6 @@ class MiscToolbar(AbstractToolbar):
             'height': self.main.current_output.height,
             'script_name': self.main.script_path.stem,
             'index': self.main.current_output.index,
-            'node_name': self.main.current_output.name,
             'frame': self.main.current_output.last_showed_frame,
             'total_frames': self.main.current_output.total_frames
         }
@@ -245,7 +224,6 @@ class MiscToolbar(AbstractToolbar):
 
         curr = self.main.current_output
         crop = curr.crop_values
-        ar = curr.ar_values
 
         self.crop_top_spinbox.setMaximum(curr.height - 1)
         self.crop_bottom_spinbox.setMaximum(curr.height - 1)
@@ -262,33 +240,9 @@ class MiscToolbar(AbstractToolbar):
         qt_silent_call(self.crop_height_spinbox.setValue, crop.height)
 
         self.crop_active_switch.setChecked(not crop.active)
-        self.ar_active_switch.setChecked(not ar.active)
         self.crop_active_switch.click()
 
         self.crop_mode_combox.setCurrentIndex(int(crop.is_absolute))
-
-    def update_sar(self, index: int | None = None) -> None:
-        if not hasattr(self.main, 'current_output') or not self.main.outputs:
-            return
-
-        output = self.main.current_output if index is None else self.main.outputs[index]
-
-        if not output._stateset or output.props is None:
-            return
-
-        try:
-            sar = (
-                max(get_prop(output.props, '_SARNum', int), 1),
-                max(get_prop(output.props, '_SARDen', int), 1)
-            )
-        except FramePropError:
-            logging.error('Failed to get SAR properties')
-            return
-
-        output.update_graphic_item(
-            None, None, ArInfo(*sar),
-            graphics_scene_item=self.main.current_output.graphics_scene_item
-        )
 
     def update_crop(self, index: int | None = None) -> None:
         if not hasattr(self.main, 'current_output') or not self.main.outputs:
@@ -446,13 +400,13 @@ class MiscToolbar(AbstractToolbar):
 
         self.main.clipboard.setText(text)
 
-    def __getstate__(self) -> dict[str, Any]:
+    def __getstate__(self) -> Mapping[str, Any]:
         return super().__getstate__() | {
             'save_file_name_template': self.save_template_lineedit.text(),
             'show_debug': hasattr(self, 'show_debug_checkbox') and self.show_debug_checkbox.isChecked()
         }
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         try_load(state, 'save_file_name_template', str, self.save_template_lineedit.setText)
 
         if hasattr(self, 'show_debug_checkbox'):

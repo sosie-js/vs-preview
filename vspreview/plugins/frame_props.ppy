@@ -77,16 +77,11 @@ class FramePropsPlugin(AbstractPlugin, QTableView):
     def setup_ui(self) -> None:
         self.verticalHeader().hide()
 
-        self._model = TableModel([], ['Name', 'Data'], False)
-
     def on_current_frame_changed(self, frame: Frame) -> None:
-        if (props := self.main.current_output.props) is None:
-            return
-
-        self.update_frame_props(props)
+        self.update_frame_props(self.main.current_output.props)
 
     def update_frame_props(self, props: FrameProps) -> None:
-        self._model._data = []
+        data = []
 
         for key in sorted(props.keys()):
             if key in _frame_props_excluded_keys:
@@ -100,10 +95,9 @@ class FramePropsPlugin(AbstractPlugin, QTableView):
                 value_str = str(props[key])
 
             if value_str is not None:
-                self._model._data.append([title, value_str])
+                data.append([title, value_str])
 
         if '_SARNum' in props and '_SARDen' in props:
-            self._model._data.append(['Pixel aspect ratio', f"{props['_SARNum']}/{props['_SARDen']}"])
+            data.append(['Pixel aspect ratio', f"{props['_SARNum']}/{props['_SARDen']}"])
 
-        self.setModel(self._model)
-        self._model.layoutChanged.emit()
+        self.setModel(TableModel(data, ['Name', 'Data'], False))
