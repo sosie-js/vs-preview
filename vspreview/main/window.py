@@ -91,7 +91,13 @@ class MainWindow(AbstractQItem, QMainWindow, QAbstractYAMLObjectSingleton):
 
     # status bar
     def STATUS_FRAME_PROP(self, prop: Any) -> str:
-        return 'Type: %s' % (prop['_PictType'].decode('utf-8') if '_PictType' in prop else '?')
+        try:
+            pict = prop['_PictType'].decode('utf-8')
+        except KeyError:
+            pict = '?'
+        except AttributeError:
+            pict = prop['_PictType'].encode('utf-8')
+        return 'Type: %s' % ( pict )
 
     EVENT_POLICY = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
