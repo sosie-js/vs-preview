@@ -29,8 +29,8 @@ Running your script
 
     The installation requires two files one is vapoursynth.properties to declare .vpy as python files (syntax hilighting) and have F5 shortcut for .vpy and ctr+1 for .py, the second .SciTEUser.properties is more for user gui opimizations
 
-1. copy  ``vapoursynth.properties`` in the proprties folder. In linux this folder is /etc/scite 
-2. copy ``.SciTEUser.properties`` to your home user directory
+1. copy  ``scite/vapoursynth.properties`` in the scite properties folder. In linux this folder is /etc/scite 
+2. copy ``scite/.SciTEUser.properties`` to your home user directory
 
 You can now open the VapourSynth script you want to run in Scite
 and run ``vs-preview`` by pressing ``F5``.
