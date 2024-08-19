@@ -36,3 +36,5 @@ It can be used by running `vspreview script.vpy` or your preferred way in [your 
 * [Visual Studio Code](https://github.com/Irrational-Encoding-Wizardry/vs-preview/tree/master/docs/installation/install_vscode.rst)
 * [Vim](https://github.com/Irrational-Encoding-Wizardry/vs-preview/tree/master/docs/installation/install_vim.rst)
 * [Notepad++](https://github.com/Irrational-Encoding-Wizardry/vs-preview/tree/master/docs/installation/install_notepad++.rst)
+* [Scite](https://github.com/sosie-js/vs-preview/tree/0.7.1-ubuntu22.04/docs/installation/install_scite.rst)
+
