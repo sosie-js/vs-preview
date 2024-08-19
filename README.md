@@ -20,7 +20,7 @@ pip install vspreview
 
 Install latest git:
 ```bash
-pip install -U git+https://github.com/Irrational-Encoding-Wizardry/vs-preview.git
+pip install -U git+https://github.com/sosie-js/vs-preview.git
 ```
 
 # Usage
